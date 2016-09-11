@@ -1,0 +1,31 @@
+---
+title: "Week 2 Assignment"
+date: "September 10, 2016"
+output: html_document
+---
+
+```{r}
+library(RPostgreSQL)
+```
+
+## Reading Data into R from Postgres
+We will want to use the postgres driver to connect, and we need to
+provide our login credentials to build a connection string
+
+```{r}
+con <- dbConnect(PostgreSQL(), user="postgres", password="password",dbname="postgres")
+```
+
+## Making data frames
+Once we have the database connection, we need to create R variables and assign them the data from our tables
+```{r}
+friends <- dbReadTable(con, c("friends"))
+movies <- dbReadTable(con, c("movies"))
+ratings <- dbReadTable(con, c("ratings"))
+```
+
+## Analyzing the data
+With data in R, we can now run R commands against the data, like summary. Here, we will get the summary of the ratings table
+```{r}
+summary (ratings)
+```

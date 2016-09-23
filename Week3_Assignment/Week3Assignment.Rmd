@@ -1,0 +1,64 @@
+---
+title: "Week 3 Assignment"
+date: "September 16, 2016"
+output: html_document
+---
+
+```{r}
+library(stringr)
+```
+
+## 3. Copy the introductory example. The vector name stores the extracted names.
+a. Use the tools of this chapter to rearrange the vector so that all elements conform to the standard 
+
+```{r}
+originalData <-"555-1239Moe Szyslak(636) 555-0113Burns, C. Montgomery555-6542Rev. Timothy Lovejoy555 8904Ned Flanders636-555-3226Simpson, Homer5553642Dr. Julius Hibbert"
+name <- unlist(str_extract_all(originalData, "[[:alpha:]., ]{2,}"))
+removeAbbrv <- str_replace_all(name, "C. ","")
+removeAbbrv <- str_replace_all(removeAbbrv, c("Rev. ", "Dr. "),"")
+fixburns <- sub('^(.*), montgomery', 'montgomery \\1', tolower(removeAbbrv))
+fixhomer <- sub('^(.*), homer', 'homer \\1', tolower(fixburns))
+camelCase <- str_replace_all(fixhomer, " ","_")
+```
+
+b. Construct a logical vector indicating whether a character has a title (i.e., Rev. and Dr.).
+```{r}
+str_detect(name,c("Rev.","Dr."))
+str_extract(name,c("Rev.","Dr."))
+```
+
+c . Construct a logical vector indicating whether a character has a second name.
+```{r}
+str_detect(fixhomer, "(.+?) (.+?)")
+str_extract(fixhomer, "(.+?) (.+?)")
+```
+
+## 4.Describe the types of strings that conform to the following regular expressions and construct an example that is matched by the regular expression.
+
+a. [0-9]+\\$  - this matches any number plus the dollar sign (which is escaped)
+```{r}
+item <- c("989898$", "something", "2323")
+str_detect(item, "[0-9]+\\$")
+str_extract(item, "[0-9]+\\$")
+```
+
+b. \\b[a-z]{1,4}\\b - matches up to four letters
+```{r}
+item <- c("abcd","a great file.txt format", "something", "2323")
+str_detect(item, "\\b[a-z]{1,4}\\b")
+str_extract(item, "\\b[a-z]{1,4}\\b")
+```
+
+c. \\d{2}/\\d{2}/\\d{4} - matches digits like a date format xx/xx/xxxx
+```{r}
+item <- c("a great file.txt format", "111/111/11111", "01/01/111", "01/01/1234")
+str_detect(item, "\\d{2}/\\d{2}/\\d{4}")
+str_extract(item, "\\d{2}/\\d{2}/\\d{4}")
+```
+
+d. <(.+?)>.+?</\\1>- matches anything looking like an html tag, anything in the middle, and anything with html tag format matching the first group
+```{r}
+item <- c("<body> I have a great body </body>", " <no > you dont < no>", "1212")
+str_detect(item, "<(.+?)>.+?</\\1>")
+str_extract(item, "<(.+?)>.+?</\\1>")
+```

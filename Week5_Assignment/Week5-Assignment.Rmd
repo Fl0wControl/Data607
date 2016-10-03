@@ -1,0 +1,28 @@
+---
+title: "Week 5 Assignment"
+output: html_document
+---
+```{r}
+library(tidyr)
+library(dplyr)
+flightInfo <- read.csv("https://raw.githubusercontent.com/Fl0wControl/Data607/master/Week5_Assignment/assignment.csv",header=TRUE,sep=",")
+```
+
+Gather the data, and transform it into the "long" format"
+
+```{r}
+flightInfo2 <- gather(flightInfo, airport, count, Los_Angeles:Seattle, factor_key=TRUE)
+```
+
+Group by the airline and status, and get some stats on the average number of flights, and total flights
+```{r}
+flightInfo2 %>% group_by(airline, status) %>% summarise(mean=mean(count), sum=sum(count))
+```
+
+Filter the data to get delays only, and then gather statistics of the average number of delays per airline, and the total number of delays per airline. It appears that AM_WEST has the most total delays of the two airports.
+
+```{r}
+delayOnly <- filter(flightInfo2, status %in% "delayed")
+
+delayOnly  %>% group_by(airline, status) %>% summarise(mean=mean(count), sum=sum(count))
+```

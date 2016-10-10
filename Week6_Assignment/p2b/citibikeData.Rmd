@@ -1,0 +1,51 @@
+---
+title: "Week 6 Assignment-Project 2"
+output: html_document
+author: "Fl0wControl"
+date: "OCtober 9, 2016"
+---
+
+The Data Set: 201606-citibike-tripdata.csv (a small sample of it)
+Suggested by: Sharon Morris
+Analysis:  The data can be analyzed to create a profile of they typical Citibike users/subscriber. The year can be converted to an age and converted to a categorical variable. Start and stop times can be used to calculate the average time each bike is used.
+
+Load the required R packages, read in the data, and analyze the structure of the data:
+```{r}
+citiBike <- read.table("https://raw.githubusercontent.com/Fl0wControl/Data607/master/Week6_Assignment/short_citi_bike.csv", header = TRUE, sep=",")
+
+str(citiBike)
+```
+In order to analyze the age of the sample, we need to first get the information.
+
+```{r}
+citiAges <- citiBike$birth.year
+
+citiAges
+```
+
+We see there are NA values, so we need to remove them from the data when calculating an age.
+```{r}
+ages <- na.exclude(2016-citiAges)
+summary(ages)
+```
+From this, we can see the mean age is 35.42, and the median is 33. Interestingly, the youngest to ride is 19 and oldest is 71 years of age.
+
+The next requested analysis was to find the start and stop times, and find the average time each bike was used. Being there is a "tripduration" variable, we can just convert this into minutes, as the total is in seconds.  I found this by taking the first stop time, and last stop time, and finding the difference. As they are already in minute format, I can find the difference.
+
+```{r}
+head(citiBike$starttime)
+head(citiBike$stoptime)
+```
+The first data point is "6/1/2016 00:24:48" in stop time, and we can subtract the start time point of "6/1/2016 00:00:18" by converting the items into seconds.
+```{r}
+(((24*60)+48)-(18))
+```
+This is equal to the first item in "tripduration", which is 1470.
+```{r}
+head(citiBike$tripduration)
+```
+
+To find the average use time, we can perform summary command against the trip duration, divided by 60. This gives us the min time of 1.48 minutes, a mean time of 11.120, and a max time of 257 minutes.
+```{r}
+summary(citiBike$tripduration/60)
+```

@@ -1,0 +1,59 @@
+---
+title: "Week 6 Assignment-Project 2"
+output: html_document
+author: "Fl0wControl"
+date: "OCtober 9, 2016"
+---
+
+The Data Set: Chicago Crimes Data
+Suggested by: Mark Halpin
+Analysis:  From the data containing information on 6 million + crimes, I would analyze primary type of crime, and aggregate the information on arrests and compare arrest rate for theft vs assault.
+
+Load the required librarys for analyzing data in wide and long formats:
+```{r}
+library(tidyr)
+library(dplyr)
+```
+Load in the sample data of the crimes (6 mil plus rows) from a hosted source:
+```{r}
+crimes <- read.table("https://raw.githubusercontent.com/Fl0wControl/Data607/master/Week6_Assignment/short_crimes.csv", header = TRUE, sep=",")
+
+str(crimes)
+```
+
+What we are most interested in for the analysis is finding how the primary crime types of theft and assualt compare in terms of arrest rates. First, we need to group the data by the primary type and arrest data (true or false). We can then count how many of each occurred. 
+
+```{r}
+groupedCrimes <- crimes %>% group_by(Primary.Type, Arrest) %>% summarise(Total=n())
+
+arrestOnly <- filter(groupedCrimes, Arrest %in% "true")
+
+arrestOnly
+
+noArrest <- filter(groupedCrimes, Arrest %in% "false")
+
+noArrest
+```
+Here we see that the battery crime type has the highest number of arrests, while the theft crime type has the highest number of non-arrests. The second
+highest data point for non-arrests is battery. I find this strange, since, of all the crimes, battery is the one you are most likely to get arrested for.
+Granted, this is only a sample, it provides interesting findings which warrant further investigation.
+
+Another interesting idea would be to find out where most of the crimes happen, and where you are most likely to be arrested. To do so, we need to add in the location.description variable.
+
+```{r}
+groupedCrimesByLocation <- crimes %>% group_by(Primary.Type, Arrest, Location.Description) %>% summarise(Total=n())
+
+arrestOnly <- filter(groupedCrimesByLocation, Arrest %in% "true")
+
+arrestOnly
+
+arrestOnly[which.max(arrestOnly$Total),]
+
+noArrest <- filter(groupedCrimesByLocation, Arrest %in% "false")
+
+noArrest
+
+noArrest[which.max(noArrest$Total),]
+```
+
+This analysis shows you are more likely to be arrested in an apartment than in the street. 

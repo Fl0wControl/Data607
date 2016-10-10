@@ -1,0 +1,64 @@
+---
+title: "Week 6 Assignment-Project 2"
+output: html_document
+author: "Fl0wControl"
+date: "OCtober 9, 2016"
+---
+The Data Set: Demographic_Statistics_By_Zip_Code.csv
+Suggested by: Dhananjay Kumar
+Analysis:  "One can use this dataset for targeted Marketing Campaign based on Demography. For example, a manufacturer of Sporting Goods or a Sport Store can choose a county for their campaign based on residents age. Another example would be to do targeted campaign on the basis of second/native language."
+
+Note: Since no age was given, nor was second or native language, I decided to see what the demographics of the data set looked like in terms of gender, ethnicity, and citizenship status.
+
+
+Load the required R packages:
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+Load in the data from a hosted source, and create a function to gather the data:
+```{r}
+nyDemographics <- read.table("https://raw.githubusercontent.com/Fl0wControl/Data607/master/Week6_Assignment/Demographic_Statistics_By_Zip_Code.csv", header = TRUE, sep=",")
+
+createGatheredData <- function(dataSet, keyCol, valueCol, gatherCol){
+  gathered <- gather_(dataSet, keyCol, valueCol, gatherCol)
+  return (gathered)
+}
+```
+
+I am curious to see what the makeup of the data is as far as the total population goes. I want to see how many total males and females represent the data, so we shall create a
+small representation of male and female respondants relative to the total surveyed.
+```{r}
+maleVsFemale <- nyDemographics %>% summarise(TotalMales=sum(COUNT.MALE), TotalFemales=sum(COUNT.FEMALE), TotalSurveyed=sum(COUNT.PARTICIPANTS), PercentMale=(TotalMales/TotalSurveyed), PercentFemale=(TotalFemales/TotalSurveyed))
+
+maleVsFemale
+```
+Males make up 1738 of those surveyed, while females makeup up 2430 of the total 4168 surveyed.
+
+Now we want to see the total ethnica makeup of the data. Is one group truly a minority?
+```{r}
+ethnicDiversity <- nyDemographics %>% summarise(
+TotalPacificIslander=sum(COUNT.PACIFIC.ISLANDER),
+TotalHispanic=sum(COUNT.HISPANIC.LATINO),
+TotalAmericanIndian=sum(COUNT.AMERICAN.INDIAN),
+TotalAsian=sum(COUNT.ASIAN.NON.HISPANIC),
+TotalWhite=sum(COUNT.WHITE.NON.HISPANIC),
+TotalBlack=sum(COUNT.BLACK.NON.HISPANIC),
+TotalOther=sum(COUNT.OTHER.ETHNICITY))
+
+ethnicDiversity
+```
+Based on the data, we can conclude that whites do make up the majority of the population, while American Indian's are the minority with the fewest surveyed.
+
+To see the citizen status of those surveyed in the demographics data, we need to summarise those who participated. After that, we can get a clearer picture of who
+is legally in the country or not.
+```{r}
+citizenStatus <- nyDemographics %>% summarise(TotalCitizenStatus = sum(COUNT.US.CITIZEN),
+TotalOtherStatus = sum(COUNT.OTHER.CITIZEN.STATUS),
+TotalUnknownStatus = sum(COUNT.CITIZEN.STATUS.UNKNOWN))
+
+citizenStatus
+```
+Surprisingly, 4052 responded with citizenship status, while only 11 responded with a status of "other"

@@ -1,5 +1,4 @@
-{
-  "books":[
+[
     {
       "topic":"data science",
       "title":"Introduction to Machine Learning with Python",
@@ -37,5 +36,4 @@
       "pages":356,
       "ISBN":"978-1-4919-2253-8"
     }
-  ]
-}
+]

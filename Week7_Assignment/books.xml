@@ -1,34 +1,33 @@
-<books>
-    <book>
-		<topic>Data Science</topic>
-        <title>Introduction to Machine Learning with Python</title>
-        <author>Andreas C. Müller</author>
-        <author>Sarah Guido</author>
-        <price>49.99</price>
-        <year-published>2016</year-published>
-        <pages>392</pages>
+<BOOKS>
+    <BOOK>
+        <TOPIC>Data Science</TOPIC>
+        <TITLE>Introduction to Machine Learning with Python</TITLE>
+        <AUTHOR>Andreas C. Müller</AUTHOR>
+        <AUTHOR>Sarah Guido</AUTHOR>
+        <PRICE>49.99</PRICE>
+        <PUBLISH-YEAR>2016</PUBLISH-YEAR>
+        <PAGES>392</PAGES>
         <ISBN>978-1-4493-6941-5</ISBN>
-    </book>
-    <book>
-		<topic>Data Science</topic>
-        <title>Learning Spark</title>
-        <author>Holden Karau</author>
-        <author>Andy Konwinski</author>
-        <author>Patrick Wendell</author>
-        <author>Matei Zaharia</author>
-        <price>39.99</price>
-        <year-published>2015</year-published>
-        <pages>276</pages>
+    </BOOK>
+    <BOOK>
+        <TOPIC>Data Science</TOPIC>
+        <TITLE>Learning Spark</TITLE>
+        <AUTHOR>Holden Karau</AUTHOR>
+        <AUTHOR>Andy Konwinski</AUTHOR>
+        <AUTHOR>Patrick Wendell</AUTHOR>
+        <AUTHOR>Matei Zaharia</AUTHOR>
+        <PRICE>39.99</PRICE>
+        <PUBLISH-YEAR>2015</PUBLISH-YEAR>
+        <PAGES>276</PAGES>
         <ISBN>978-1-4493-5862-4</ISBN>
-    </book>
-    <book>
-		<topic>Data Science</topic>
-        <title>Foundations for Analytics with Python</title>
-        <author>Clinton Brownley</author>
-        <price>44.99</price>
+    </BOOK>
+    <BOOK>
+        <TOPIC>Data Science</TOPIC>
+        <TITLE>Foundations for Analytics with Python</TITLE>
+        <AUTHOR>Clinton Brownley</AUTHOR>
+        <PRICE>44.99</PRICE>
         <publication>2016</publication>
-        <pages>356</pages>
+        <PAGES>356</PAGES>
         <ISBN>978-1-4919-2253-8</ISBN>
-    </book>
-
-</books>
+    </BOOK>
+</BOOKS>

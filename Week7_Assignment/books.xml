@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <books>
-    <book topic="data science">
-        <title lang="en">Introduction to Machine Learning with Python</title>
+    <book>
+		<topic>Data Science</topic>
+        <title>Introduction to Machine Learning with Python</title>
         <author>Andreas C. Müller</author>
         <author>Sarah Guido</author>
         <price>49.99</price>
@@ -9,8 +9,9 @@
         <pages>392</pages>
         <ISBN>978-1-4493-6941-5</ISBN>
     </book>
-    <book topic="data science">
-        <title lang="en">Learning Spark</title>
+    <book>
+		<topic>Data Science</topic>
+        <title>Learning Spark</title>
         <author>Holden Karau</author>
         <author>Andy Konwinski</author>
         <author>Patrick Wendell</author>
@@ -20,8 +21,9 @@
         <pages>276</pages>
         <ISBN>978-1-4493-5862-4</ISBN>
     </book>
-    <book topic="data science">
-        <title lang="en">Foundations for Analytics with Python</title>
+    <book>
+		<topic>Data Science</topic>
+        <title>Foundations for Analytics with Python</title>
         <author>Clinton Brownley</author>
         <price>44.99</price>
         <publication>2016</publication>

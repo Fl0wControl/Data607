@@ -1,0 +1,45 @@
+setwd("C:/Users/EndUser/Downloads")
+caliArrest <- read.csv("CA_DOJ_Arrest_06to15.csv", header=TRUE, sep=",", stringsAsFactors=FALSE)
+
+install.packages("pdftools")
+library(pdftools)
+thePdf <- pdf_text("arrest_variables.pdf")
+
+
+thePdf2 <-  thePdf 
+thePdf2 <-  str_trim(unlist(str_replace_all(thePdf2,"SCO[[:digit:]][[:digit:]]\\_sum[[:space:]][[:digit:]]", "")))
+thePdf2 <-  str_trim(unlist(str_replace_all(thePdf2, "[[:digit:]]" , "")))
+thePdf2 <-  str_trim(unlist(str_replace_all(thePdf2, "Variable|Position|Measurement|Level|Label|Nominal|Scale|Page|of|YEAR" , "")))
+test <- read.table(textConnection(thePdf2),header=FALSE,sep="\n",strip.white=TRUE)
+
+pdfPage1 <- thePdf[1]
+pdfPage2 <- thePdf[2]
+pdfPage3 <- thePdf[3]
+pdfPage4 <- thePdf[4]
+
+fileConn<-file("pdfPg1File.txt")
+writeLines(pdfPage1, fileConn)
+close(fileConn)
+
+fileConn<-file("pdfPg2File.txt")
+writeLines(pdfPage2, fileConn)
+close(fileConn)
+
+fileConn<-file("pdfPg3File.txt")
+writeLines(pdfPage3, fileConn)
+close(fileConn)
+
+fileConn<-file("pdfPg4File.txt")
+writeLines(pdfPage4, fileConn)
+close(fileConn)
+
+data <- read.table("pdfPg1File.txt", header = TRUE, skip=1, strip.white = TRUE)
+
+data$NewCol <- do.call(paste, c(data[c("Level", "Label")], sep = " ")) 
+
+
+df <- read.table("arrest.txt", header = FALSE, sep = "\n", strip.white = TRUE, na.strings=c("NA", " "))
+foo <-  str_trim(unlist(str_replace_all(df$V1,"SCO[[:digit:]][[:digit:]]\\_sum[[:space:]]+[[:digit:]]", "")))
+foo <-  str_trim(unlist(str_replace_all(foo, "[[:digit:]]" , "")))
+foo <-  str_trim(unlist(str_replace_all(foo, "Variable|Position|Measurement|Level|Label|Nominal|Scale|Page|of|YEAR|SCALE|NCIC_NAME|GENDER|F_ALLOTHER|F_TOTAL|M_TOTAL|S_TOTAL|SCO_sum|RACE|AGE_GROUP|COUNTY" , "")))
+foo <- str_trim(unlist(foo))

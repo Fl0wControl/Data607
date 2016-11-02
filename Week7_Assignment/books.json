@@ -1,0 +1,39 @@
+[
+    {
+      "topic":"data science",
+      "title":"Introduction to Machine Learning with Python",
+      "author":[
+        "Andreas C. Müller",
+        "Sarah Guido"
+      ],
+      "price":49.99,
+      "year-published":2016,
+      "pages":392,
+      "ISBN":"978-1-4493-6941-5"
+    },
+    {
+      "topic":"data science",
+      "title":"Learning Spark",
+      "author":[
+        "Holden Karau",
+        "Andy Konwinski",
+        "Patrick Wendell",
+        "Matei Zaharia"
+      ],
+      "price":39.99,
+      "year-published":2015,
+      "pages":276,
+      "ISBN":"978-1-4493-5862-4"
+    },
+    {
+      "topic":"data science",
+      "title":"Foundations for Analytics with Python",
+      "author":[
+        "Clinton Brownley"
+      ],
+      "price":44.99,
+      "year-published":2016,
+      "pages":356,
+      "ISBN":"978-1-4919-2253-8"
+    }
+]

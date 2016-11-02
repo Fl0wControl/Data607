@@ -1,0 +1,33 @@
+Load the required libraries and create a variable for the URL
+
+```{r}
+library(jsonlite)
+library(plyr)
+library(dplyr)
+library(knitr)
+library(httr)
+
+url <- "https://api.nytimes.com/svc/books/v3/lists.json?api-key=8074adfeb5a1414e8943e3a2278c51e7?list=hardcover-fiction"
+```
+
+Use the JSONlite library to read the results of the url GET request into a json object in R. After that is completed, transform it into an R data frame.
+```{r}
+jsonResponse <- fromJSON(url)
+
+jsonDF <- as.data.frame(jsonResponse)
+```
+
+Now that the data is in a data frame, we can group the data together by certain variables. Lets get some basic book information.
+```{r}
+names(jsonDf)
+
+groupedDF <-  jsonDF %>% select(results.title, results.author, results.age_group, results.price)
+
+groupedDF
+```
+
+In order to present a nice layout of the data, we can use the kable function in the knitr library. We can then use this to find
+patterns or variables that would make a worth while analysis.
+```{r}
+kable(groupedDF)
+```

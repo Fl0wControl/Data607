@@ -1,0 +1,167 @@
+---
+title: "Week10_Assignment"
+date: "November 10, 2016"
+output: html_document
+---
+
+
+First, all the packages need to be loaded. Then, we set the seed for consistency when running and knitting the data.
+```{r warning=FALSE}
+library(tm)
+library(SnowballC)
+library(caTools)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+set.seed(123)
+```
+
+Set the paths of the files. As there are over 3k files, it is not feasible to load them all online into Github. 
+You can find the files here:  https://spamassassin.apache.org/publiccorpus/
+I used files 20030228_easy_ham.tar.bz2 and 20050311_spam_2.tar.bz2, which need to be unzipped twice and put in the
+directory of your choice. Once unzipped, change the paths to reference that directory.
+```{r}
+spamDocPath <- "C:/Users/EndUser/Downloads/spam_2/"
+hamDocPath <- "C:/Users/EndUser/Downloads/easy_ham/"
+```
+
+The following code is from the book, "Machine Learning for Hackers", from chapter 3. The following
+code does opens each file in the file path as a string, finds the first line break, and returns the 
+text below the break as a character vector with a single text element. The "rt" specifies that the code
+reads as text, and uses the latin1 encoding for non-ASCII characters. After that, the read lines function
+returns each line of the files, and then following that the connection is closed and the text vectors
+are combined using the paste function and seperates via a newline.
+
+```{r}
+# ----------From Machine Learning for Hackers-----------#
+get.msg <- function(path) {
+    con <- file(path, open="rt", encoding="latin1")
+    text <- readLines(con)
+    # The message always begins after the first full line break
+    msg <- text[seq(which(text=="")[1]+1,length(text),1)]
+    close(con)
+    return(paste(msg, collapse="\n"))
+}
+# -------------------------------------------------------#
+```
+
+The following code creates a character vector by reading the files in the directory
+and excluding the cmds files.
+
+```{r warning=FALSE}
+# ------------From Machine Learning for Hackers-----------#
+spamDocs <- dir(spamDocPath)
+spamDocs <- spamDocs[which(spamDocs!="cmds")]
+allSpam <- sapply(spamDocs, function(p) get.msg(paste(spamDocPath,p,sep="")))
+
+hamDocs <- dir(hamDocPath)
+hamDocs <- hamDocs[which(hamDocs!="cmds")]
+allHam <- sapply(hamDocs, function(p) get.msg(paste(hamDocPath,p,sep="")))
+# -------------------------------------------------------#
+```
+
+Create the data frames for the combined spam and ham data, and then
+merge the two data frames, essentially appending one to another.
+```{r}
+spamDf <- data.frame("text"=allSpam, "isSpam" = as.factor(FALSE), stringsAsFactors=FALSE)
+hamDf <- data.frame("text"=allHam, "isSpam" = as.factor(TRUE), stringsAsFactors=FALSE)
+
+spamHam <- merge(spamDf,hamDf,all=TRUE)
+```
+
+Create the corpus and clean the data
+```{r}
+spamHamcorpus = Corpus(VectorSource(spamHam$text))
+
+cleanDocument <- function(corpus){
+	cleanedDoc <- tm_map(corpus, tolower)
+    cleanedDoc <- tm_map(corpus, PlainTextDocument)
+	cleanedDoc <- tm_map(corpus, removePunctuation)
+	cleanedDoc <- tm_map(corpus, removeWords, stopwords("english"))
+	cleanedDoc <- tm_map(corpus, stemDocument)
+    return (cleanedDoc)
+}
+
+cleanDocument(spamHamcorpus)
+```
+
+After the document is cleaned, we can find the amount of terms, and total number of documents
+```{r}
+spamHamFrequencies <- DocumentTermMatrix(spamHamcorpus)
+```
+
+To see what the matrix looks like, with the document range and word range,
+we can run the inspect command, specifying the document range and word range.
+```{r}
+inspect(spamHamFrequencies[1:10, 5:25])
+# many zeros in the matrix shows sparsity, or count of words found in the documents
+
+# find the words that occur at least 30 times
+findFreqTerms(spamHamFrequencies, lowfreq=30)
+```
+
+We want to remove terms that don't appear very often, using a sparsity threshold.
+Basically, the sparsity threshold is subtracted from 1, and the remainder is 
+what you keep. For example- if you choose 0.995, you keep .5% of terms. then, convert
+it into a data frame.
+
+```{r}
+sparseTerms <- removeSparseTerms(spamHamFrequencies, 0.92)
+
+emailSparse <- as.data.frame(as.matrix(sparseTerms))
+```
+
+Next, we want to ensure all the words are appropriate variable names.
+since R struggles with column names that start with a number. Once that is done,
+add a dependent variable for the decision tree classification.
+
+```{r}
+colnames(emailSparse) <- make.names(colnames(emailSparse))
+
+emailSparse$isSpam <- spamHam$isSpam
+```
+
+
+We have to divide the data, so we split on dependent variable, 
+using the splitRatio command. This gives us data for a training set, and 
+use subset to create a training and test set.
+```{r}
+emailSplit <- sample.split(emailSparse$isSpam, SplitRatio=0.7)
+
+trainEmailSparse <- subset(emailSparse, emailSplit == TRUE)
+testEmailSparse <- subset(emailSparse, emailSplit == FALSE)
+```
+
+Build a classification model to determine that a model is spam
+then plot the tree with the PRP function
+```{r}
+emailCart <- rpart(isSpam ~ ., data=trainEmailSparse, method="class")
+prp(emailCart)
+```
+Based on the tree, if the words our, and wrote are found, then predict true.
+If any words are found, predict true, otherwise, false and the email is not spam
+
+We can then Use the model, and predict spam or ham using the emailCart, and the test data.
+```{r}
+predictCART = predict(emailCart, newdata=testEmailSparse, type="class")
+```
+
+To test the accuracy, we need to create a confusion matrix using the table function. The first argument
+are the actual outcomes, and then the second arguments are the predictions
+```{r}
+table(testEmailSparse$isSpam, predictCART)
+```
+
+Compute the accuracy, adding the numbers on the diagonal, and divide by the total number
+of observations in the table/ test set
+```{r}
+(366+717)/(366+53+33+717)
+```
+This gives us 93% accuracy
+
+Finally, we can compare these results with a baseline model, where the accuracy that always predicts non negative
+would be the false values divided by the total values. This gives roughly 36%
+```{r}
+table(emailSparse$isSpam)
+(1396)/(1396+2500)
+```

@@ -1,0 +1,84 @@
+---
+title: "Project 4"
+output: html_document
+---
+```{r}
+library(mongolite)
+library(RPostgreSQL)
+```
+
+Bring the file into R, and deal with the missing values. In this case, I am setting the null values or NA values to zero.
+After, I am saving the file back.
+```{r}
+setwd("C:/Users/EndUser/Downloads/flights")
+flights <- read.csv("flights.csv", sep = ",", header = TRUE)
+flights[is.na(flights)] <- 0
+write.csv(flights, "flightsClean.csv")
+```
+
+Second, you need to create the SQL database to store the data from the flights.csv file. Once that database is created, you can run the COPY command from 
+Postgres to insert the data into the DB, taking each header from the CSV and making it a column.
+```{r}
+# create table flights (
+# flight_id SERIAL PRIMARY KEY NOT NULL,
+# flight_year INTEGER NOT NULL,
+# flight_month INTEGER NOT NULL,
+# flight_day INTEGER NOT NULL,
+# dept_time INTEGER NOT NULL,
+# dep_delay INTEGER NOT NULL,
+# arr_time INTEGER NOT NULL,
+# arr_delay INTEGER NOT NULL,
+# carrier TEXT NOT NULL,
+# tailnum VARCHAR(9) NOT NULL,
+# flight_number INTEGER NOT NULL,
+# origin TEXT NOT NULL,
+# destination TEXT NOT NULL,
+# air_time INTEGER NOT NULL,
+# distance INTEGER NOT NULL,
+# dep_hr INTEGER NOT NULL,
+# dep_min INTEGER NOT NULL
+# );
+```
+
+This command needs to be run from the postgres command line (via windows terminal) if working on Windows OS. There is some issue
+with permissions that causes an error when using the gui. An example command on how to get this to run is 
+as follows.
+
+First, ensure that postgres is running in the back ground. Enter this command, which will ask for a password:
+```{r}
+# psql -U postgres -d flights -h localhost -W
+```
+Once you are logged in, run the following command, changing the path to meet your requirements and setup:
+```{r}
+#\COPY flights FROM 'C:\Users\EndUser\Downloads\flights\flightsClean.csv' DELIMITER ',' CSV HEADER;
+```
+After those commands are run, you now have a copy of the data in postgres. 
+
+Establish a connection to the postgres database, and pull out the data from the flights database/table. Once it
+is a data frame, us that data frame as the information to insert into MongoDB. This will create a flights database
+with a flightData collection.
+```{r}
+pgCon <- dbConnect(PostgreSQL(), user="postgres", password="password",dbname="flights")
+
+flightsPg <- dbReadTable(pgCon, c("flights"))
+
+con <- mongo(collection = "flightData", db = "flights", url = "mongodb://localhost", verbose = TRUE)
+```
+
+```{r echo=FALSE}
+con$insert(flightsPg)
+```
+
+Then, once the data is inserted, you can do something with it.
+```{r echo=FALSE}
+mongoData <- con$find()
+```
+```{r}
+str(mongoData)
+
+summary(mongoData)
+```
+
+In short, we have take some data in a CSV format, cleaned it, created a SQL database, and then brought that data into R to migrate into Mongo. 
+
+Between Mongo and Postgres, I see no reason to go with MongoDB. Postgres supports JSON and JSONB, essentially rendering Mongo useless. You can have Postgres serve as a document store database, hybrid database, or strictly a relational database if you wanted. Mongo, on the other hand, cannot. Mongo is not relational, and while it is touted as being a "schemaless design", the schema is implicit rather than an explicit schema with a traditional sql db. With that being said, modeling data in Mongo is tricky when it comes to relationships. You either create a lookup collection, or embed documents. Furthermore, you need to write multiple queries to mimick a join. I personally don't find Mongo as a viable option for use in the real world unless all you want to do is dump data in and take data out without building or creating any type of relationships and schema for a production grade app. If you just want a data store for streaming, unstructured data that will be pulled out and manipulated later on, than Mongo is a better choice.

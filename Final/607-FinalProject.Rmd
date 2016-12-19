@@ -1,0 +1,336 @@
+---
+title: "607-FinalProject"
+author: "MH"
+date: "December 18, 2016"
+output: html_document
+---
+
+## Warning!
+
+Running the code in this document and in the accompanying gists as-is requires a high end computer with a fast internet connection.
+
+The data file being downloaded in R is over 140mb, and will take a while to download via R (5+ mins). The updates in SQL take a long time (over 25 mins). The neo4j code takes a long time (over 15 mins).
+
+I suggest going to the OpenDATA repo and filtering the data, and reducing the size from 920k + rows to something smaller. You can do that by filtering the data, and then going to the export tab, and right click the export to csv link in your browser, selecting 'copy link location'. Paste the link in place of the URL below. 
+
+# Use this at your own risk!
+
+## Getting Started
+First, we need to start by loading the proper libraries for analysis, and set the working directory.
+```{r echo=FALSE}
+library (RPostgreSQL)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(tm)
+library(wordcloud)
+library(RColorBrewer)
+```
+
+After the libraries are loaded, we need to load in the data. The data that will be used for the analysis
+are car accident data from New York City. This dataset contains over 940k rows, and 29 variables describing the accident. There are a few things we can do with the dataframe. We can run the 'dim' command to show the exact figures of what is included in the data. We can also run the 'str' command to find out what those variable names are, and the types of data found within them. Finally, we can run the summary command to show how the data pans out statistically. This gets us data such as mean, medain, and upper/lower quartiles.
+```{r}
+url <- 'https://data.cityofnewyork.us/api/views/h9gi-nx95/rows.csv?accessType=DOWNLOAD'
+
+nypd <- read.csv(url,header=TRUE,sep=",", stringsAsFactors = FALSE)
+
+dim(nypd)
+
+str(nypd)
+
+summary(nypd)
+```
+
+# Data Cleaning
+Before any analysis is done, we need to check and see if there are any missing data. This missing data
+has the potential to skew the results of the analysis. The easiest way to do that is to count the number of 'NA' entries found across the columns. The nested is.na command inside colSums provides this information.
+
+However, this doesn't account for any empty strings, so we can use the any() command to check the columns
+for rows with missing character data. We can tell if there are missing data by checking unique values, which gives us a list of all the vectors.. I am only going to check one column, because we are going to do clean up after this, but you can tell that empty strings are present.
+```{r}
+colSums(is.na(nypd))
+unique(nypd$VEHICLE.TYPE.CODE.5)
+any(nypd$VEHICLE.TYPE.CODE.5 =="")
+```
+
+We see that the zipcode, latitude, and longitude columns contain missing data. We also see that there
+was missing data in the vehicle type column. To handle this, we are going to set the NA numerical values
+to 0, and set the missing text data to unspecified, which is already a vector found in the vehicle type field as seen by the unique command run above.
+```{r}
+nypd[nypd==""] <- 'Unspecified'
+
+nypd[is.na(nypd)] <- 0
+```
+
+# Using Postgresql and R
+
+After some clean up work is done, we want to see if we can draw any relationships between the data. One way to do this is to use Neo4j, which is a graph database. These types of database create relationships through the use of nodes, relationships and labels. The data needs to be entered into neo4j via CSV, and it must be structured. As per their documentation, it is best if the data is already in a database, with the relationships established via primary and foreign keys. Since this is not yet done, we can do that via R. 
+
+The first step is to connect to create the database in a SQL database store. You must use the commands in the gist to create the tables first. I have already done this, and created the database tables with 3rd normal form normalization. I also established the primary and foreign key relationships. I have created a 'gist' to show this data and keep it out of R, which is found here: https://gist.github.com/Fl0wControl/256b6e575360d32bc4e5ffc55aa1bac8
+```{r}
+pgConn <- dbConnect(PostgreSQL(), user="postgres", password="password",dbname="nypd")
+```
+
+Next, I add columns to the nypd data frame, which I plan to use when adding data to the postgres database.
+Essentially, these are dummy columns that act as placeholders.
+```{r}
+nypd$boroughId <- 0
+nypd$zipcodeId <- 0
+nypd$accidentTime <- 0
+nypd$coordinatesId <- 0
+nypd$collateralDamage <- 0
+nypd$involvedFactors <- 0
+nypd$involvedVehicles <- 0
+nypd$allStreets <- 0
+```
+
+Since there are no actual row names, and we need some sort of numerical marker to distinguish each row as 
+being a unique row for sql insertion, I am setting the rownames to a numerical value in the following function. This will act as a primary key for the database.
+```{r}
+# reset the rowname to a numerical value, which will act as the primary key when inserted
+writeToTable <- function (table, dataFrame){
+	row.names(dataFrame) <- NULL
+	dbWriteTable(pgConn, table, value = dataFrame, append = TRUE, row.names=TRUE)
+}
+```
+Next, I am creating data frames for each set of data that will match the tables I created in Postgres.
+
+```{r}
+dateTime <- as.data.frame(unique(nypd[,c("DATE", "TIME")]))
+borough <- as.data.frame(unique(nypd[,c("BOROUGH")]))
+zipcode <- as.data.frame(unique(nypd[,c("ZIP.CODE")]))
+latlong <- as.data.frame(unique(nypd[,c("LATITUDE", "LONGITUDE")]))
+
+collateralDamage <- as.data.frame(unique(nypd[,c(
+"NUMBER.OF.PERSONS.INJURED",
+"NUMBER.OF.PERSONS.KILLED",
+"NUMBER.OF.PEDESTRIANS.INJURED",
+"NUMBER.OF.PEDESTRIANS.KILLED",
+"NUMBER.OF.CYCLIST.INJURED",
+"NUMBER.OF.CYCLIST.KILLED",
+"NUMBER.OF.MOTORIST.INJURED",
+"NUMBER.OF.MOTORIST.KILLED"
+)]))
+
+involvedFactors <- as.data.frame(unique(nypd[,c(
+"CONTRIBUTING.FACTOR.VEHICLE.1",
+"CONTRIBUTING.FACTOR.VEHICLE.2",
+"CONTRIBUTING.FACTOR.VEHICLE.3",
+"CONTRIBUTING.FACTOR.VEHICLE.4",
+"CONTRIBUTING.FACTOR.VEHICLE.5"
+)]))
+
+involvedVehicles <- as.data.frame(unique(nypd[,c(
+"VEHICLE.TYPE.CODE.1",
+"VEHICLE.TYPE.CODE.2",
+"VEHICLE.TYPE.CODE.3",
+"VEHICLE.TYPE.CODE.4",
+"VEHICLE.TYPE.CODE.5"
+)]))
+
+allStreets <- as.data.frame(unique(nypd[,c(
+"ON.STREET.NAME",
+"CROSS.STREET.NAME",
+"OFF.STREET.NAME"
+)]))
+```
+
+Finally, I can write the data frames to the tables I made in postgres.
+```{r}
+writeToTable("temp_accident_store", nypd)
+writeToTable("accident_timestamp", dateTime)
+writeToTable("borough", borough)
+writeToTable("zipcode",zipcode)
+writeToTable("accident_coordinates", latlong)
+
+writeToTable("collateral_damage", collateralDamage)
+writeToTable("involved_vehicles", involvedVehicles)
+writeToTable("involved_factors", involvedFactors)
+writeToTable("street_combinations", allStreets)
+```
+
+# Update Postgresql and Start Analyzing
+
+After writing the data to the tables above, I have to execute additional SQL commands to update the table.
+Remember those dummy values before? This is where they come into play. The SQL I used for this step is found here: https://gist.github.com/Fl0wControl/6da1b3741d26fd4bf7e4260a28b78a9b.
+
+```{r}
+
+dbGetQuery(pgConn, 
+	"UPDATE temp_accident_store tas
+	SET borough_id = b.borough_id
+	FROM borough b
+	WHERE tas.BOROUGH = b.borough_name")
+	
+dbGetQuery(pgConn,"UPDATE temp_accident_store tas
+SET zipcode_id = z.zipcode_id
+FROM zipcode z
+WHERE tas.ZIP_CODE = z.zipcode_data") 
+
+
+dbGetQuery(pgConn,"UPDATE temp_accident_store tas
+SET accident_time_id = ats.accident_timestamp_id
+FROM accident_timestamp ats
+WHERE tas.accident_date = ats.accident_timestamp_date
+AND tas.accident_time = ats.accident_timestamp_time")
+
+
+dbGetQuery(pgConn,"UPDATE temp_accident_store tas
+SET coordinates_id = ac.coordinate_id
+FROM accident_coordinates ac
+WHERE tas.LATITUDE = ac.latitude
+AND tas.LONGITUDE = ac.longitude") 
+
+dbGetQuery(pgConn,"UPDATE temp_accident_store tas
+SET    collateral_damage_id = cd.damage_id
+FROM   collateral_damage cd
+WHERE  tas.NUMBER_OF_PERSONS_INJURED = cd.num_person_injured
+AND tas.NUMBER_OF_PERSONS_KILLED = cd.num_person_killed
+AND tas.NUMBER_OF_PEDESTRIANS_INJURED = cd.num_pedestrian_injured
+AND tas.NUMBER_OF_PEDESTRIANS_KILLED = cd.num_pedestrian_killed
+AND tas.NUMBER_OF_CYCLIST_INJURED = cd.num_cyclist_injured
+AND tas.NUMBER_OF_CYCLIST_KILLED = cd.num_cyclist_killed
+AND tas.NUMBER_OF_MOTORIST_INJURED = cd.num_motorist_injured
+AND tas.NUMBER_OF_MOTORIST_KILLED = cd.num_motorist_killed")
+
+dbGetQuery(pgConn,"UPDATE temp_accident_store tas
+SET    involved_factors_id = ivf.involved_factors_id
+FROM   involved_factors ivf
+WHERE  tas.CONTRIBUTING_FACTOR_VEHICLE_1 = ivf.contributing_factor_1
+AND tas.CONTRIBUTING_FACTOR_VEHICLE_2 = ivf.contributing_factor_2
+AND tas.CONTRIBUTING_FACTOR_VEHICLE_3 = ivf.contributing_factor_3
+AND tas.CONTRIBUTING_FACTOR_VEHICLE_4 = ivf.contributing_factor_4
+AND tas.CONTRIBUTING_FACTOR_VEHICLE_5 = ivf.contributing_factor_5")
+
+dbGetQuery(pgConn,"UPDATE temp_accident_store tas
+SET    involved_vehicles_id = iv.involved_vehicles_id
+FROM   involved_vehicles iv
+WHERE  tas.vehicle_type_code_1 = iv.vehicle_1
+AND tas.vehicle_type_code_2 = iv.vehicle_2
+AND tas.vehicle_type_code_3 = iv.vehicle_3
+AND tas.vehicle_type_code_4 = iv.vehicle_4
+AND tas.vehicle_type_code_5 = iv.vehicle_5") 
+
+dbGetQuery(pgConn,"UPDATE temp_accident_store tas
+SET    all_streets_id = sc.street_combo_id
+FROM   street_combinations sc
+WHERE  tas.ON_STREET_NAME = sc.onstreet_data
+AND tas.CROSS_STREET_NAME = sc.cross_street_data
+AND tas.OFF_STREET_NAME = sc.offstreet_data") 	
+	
+	
+tempQueryResults <- dbGetQuery(pgConn,
+	"SELECT 
+		borough_id, 
+		zipcode_id, 
+		accident_time_id, 
+		coordinates_id, 
+		collateral_damage_id, 
+		involved_factors_id, 
+		involved_vehicles_id, 
+		all_streets_id 
+	FROM 
+		temp_accident_store")
+
+writeToTable("accident_report", tempQueryResults)
+```
+
+Now that the data is in SQL and updated, it needs to be exported to be brought into Neo4j. This can be done via the postgres command line, or the postgres GUI tool pgadmin. The process involves exporting the SQL code into CSV. To do so, I used the postgres cli to copy the data from the tables in csv with the code found here:https://gist.github.com/Fl0wControl/045fa7c32ccb8055d6bdabf318240c40. 
+
+# Enter data into Neo4j. This step is time intensive and manual!
+
+You must download and setup a Neo4j database, and load in the data from the CSV files. Please note this is not an automated step. You must ADD an import folder in the Neo4j\default.graphdb folder, and copy/paste your csv files into there. The code to load the data into Neo4j is found here: https://gist.github.com/Fl0wControl/409756f3fc17953ab11b9a17d9068692
+
+Once Neo4j is loaded, you must manually enter in each command, one at a time, in the neo4j command prompt
+when it is loaded into your web browser. I don't have steps or instructions on how to automate the process, but they most likely exist somewhere. I have not used Neo4j prior to this, so the steps I took
+are most likely inefficient and could be done better, as the work done here was done after learning the very basics of Neo4j in about 10 hrs time. I took this as a chance to learn, but be warned it is not the best way to do anything in Neo4j.
+
+# Data Analysis with Neo4j
+
+Once in neo4j, I was able to create a small graph. While I planned on creating many relationships, and creating a very robust graph database, I simply did not have time to build it out any further. Once I loaded in the data, I created a small network of relationships as seen below:
+
+![Neo4J Relationships](neo.png)
+
+I expaned out the child nodes the data point, and got the 'crashed in' and 'caused by' labels for the data points. I limited the results to 5 in the interest of time and resources. This just goes to show how powerful Neo4j is when you know how to use it. You can quickly visualize the data and how it relates to the data around it.
+
+## Visualize the Data
+
+After sending everything to SQL, and Neo4j, it is time we get back to R. After looking at the data, I am curious to know if there are certain contributing factors at play which might be leading to more accidents. Also, I would be curious to find out if there are certain vehicles that are constantly being involved in accidents. Are trucks more likely to crash or passenger vehicles? What factor is most likely to cause the accident? There are a few ways to find this information. One way is to create a word cloud of the most common terms. I am going to create 2 word clouds; 1 for the contributing factors, and 1 for the vehicles involved.
+
+# Creating a word cloud
+
+ To create a word cloud, we need the tm, RcolorBrewer, and wordcloud packages. We need to transform the data frame into a word corpus, make it a plain text document, and set everything to lowercase for uniformity. The wordcloud package takes in a few values about the maximum amount of words, frequency of words, and if there needs to be any colors associated.
+```{r}
+contribFactVeh1<- Corpus(VectorSource(involvedFactors$CONTRIBUTING.FACTOR.VEHICLE.1))
+contribFactVeh1 <- tm_map(contribFactVeh1, tolower)
+contribFactVeh1 <- tm_map(contribFactVeh1, PlainTextDocument)
+wordcloud(contribFactVeh1, max.words=100, min.freq=25, random.order=FALSE, colors=brewer.pal(8, "Dark2"))
+vehicle1<- Corpus(VectorSource(involvedVehicles$VEHICLE.TYPE.CODE.1))
+vehicle1 <- tm_map(vehicle1, tolower)
+vehicle1 <- tm_map(vehicle1, PlainTextDocument)
+wordcloud(vehicle1, max.words=100, min.freq=25, random.order=FALSE, colors=brewer.pal(8, "Set2"))
+```
+
+Just based on the observation of the word cloud alone, it appears that passenger vehicles are most often found in the data set as involved vehicles, and driver innatention/distraction is the leading cause of the accidents. I draw these conclusions from the first vehicle factor and contributing factor because in order for there to be an accident, at least one vehicle and one person must be involved. However, there are more rigid and mathematical ways of visualizing the data. I am going to explore those more below, but I want to confirm that this indeed is the case where inattention or distraction leads to the most injuries.
+
+# Visualizing data in Tableau
+
+Tableau is a tool which makes data visualization incredibly simple. You don't need to have any programming knowledge at all. All you need to do is download and install a software package via a setup wizard, click a few buttons to load your data, and then drag and drop the fields you want to visualize. I created an example to show just how easy it was. In the data set, there are 6 different values for the Boroughs - Null, Bronx, Brooklyn, Manhattan, Queens and Staten Island. For this visualization, I wanted to see if there was any difference between the number of injuries across each borough and each type of injury. For example, how do cyclist injuries compare to pedestrian injuries in the Bronx. The below bar chart shows how the data stacks up (literally).
+
+![Injuries by Borough](totalInjuriesByBorough.png)
+
+This visualization shows that there are over 60k people injured in an unknown borough. What happened here? Did the police forget to write something down in the accident report? Or perhaps, did this occur outside of the 5 boroughs? These are some of the questions I would start asking if there was a safety committee. 
+
+It also appears that there are a high number of persons injured in Brooklyn. Why is this? Are there more people in Brooklyn as opposed to Staten Island, which has the least number of persons injured? Or are there better safety standards? All important questions that need answers if you want to reduce the amount of injuries and deaths in accidents.
+
+## Analyze in R
+
+This is all great information. But, what if we didn't have access to Tableau? How could we get the visualizations here, and help our data tell the story? The best way to do that would be with plots and analysis in base R itself. However, to get more feature rich charts and analysis, it is often necessary to import other libraries. Two such libraries are tidyr and dplyr. These libraries help to manipulate the data into more readable and manageable formats. You can also use ggplot to create richer visualizations. We will explore both tools in the following section.
+
+# Accidents by Date and Borough
+
+The date format in this data frame is in the MM/DD/YYYY format, which is nice to see from a glance, but makes it hard to break data points into year alone. One way to do this, very easily, is with tidyr package. We will separate the month, day and year items, and then group the sum of a variable by year.
+```{r}
+nypd <- separate(nypd, DATE, c("month", "day", "year"), sep = "/")
+
+grpYrInjury<- nypd %>% group_by(year) %>% summarise(Total = sum(NUMBER.OF.PERSONS.INJURED))
+
+grpYrInjury
+```
+This data shows that 2012 had the lowest amount of persons injured, and then that amount nearly doubles in the following year of 2013. Why is that? It is unknown based on this data set alone, and will require other variables, data sets, and domain knowledge to figure out this anomaly, but you can see that this is a clear indication of a problem. We can also do the same analysis by borough, which can mimic that data which was found in tableau. To get a bar chart with the comparative data per borough, we need to use ggplot. The chart I will create will not be as detailed as the tabluea chart, but it conveys a similar message in terms of the comparison. I also want to visualize the doubling of injured persons, and the trend which carries on between 2012 and 2014 with a time series graph. 
+
+```{r}
+grpBoroughInjury<- nypd %>% group_by(BOROUGH) %>% summarise(Total = sum(NUMBER.OF.PERSONS.INJURED))
+grpBoroughInjury
+
+ggplot(data=grpBoroughInjury, aes(x=BOROUGH, y=Total, fill=BOROUGH)) + geom_bar(colour="black", stat="identity") + guides(fill=FALSE)
+
+#When i did not have 'group = 1', i got the error geom_path: Each group consists of only one observation. 
+injuriesOverTime <- ggplot(grpYrInjury,aes(year,Total, group = 1))+geom_line(aes(color="Injuries"))
+injuriesOverTime
+```
+
+We can also group the data by contributing factor and vehicle. This could provide information on what the causes were per vehicle, and we can see if there are any patterns to be found. I am going to rank the data, and only get the top 5 items. This function below basically asks for the data frame, pipes it to the group_by function in dplyr, summarizes the count of persons injured by contributing factor, and selects the top 5. It sets it to the variable groupedContribFacInjuries, and then I plot that data with ggplot in a bar graph. I can also do the same thing for vehicle type as well.
+
+```{r}
+# Group injuries by contributing factor of vehicle 1
+groupedContribFacInjuries <- nypd %>% group_by(CONTRIBUTING.FACTOR.VEHICLE.1) %>% summarise(Total = sum(NUMBER.OF.PERSONS.INJURED)) %>%  top_n(n = 5, wt = Total)
+
+groupedContribFacInjuries
+
+ggplot(data=groupedContribFacInjuries, aes(x=CONTRIBUTING.FACTOR.VEHICLE.1, y=Total, fill=CONTRIBUTING.FACTOR.VEHICLE.1)) + geom_bar(colour="black", stat="identity") + guides(fill=FALSE)
+
+groupedVehicleInjuries <- nypd %>% group_by(VEHICLE.TYPE.CODE.1 ) %>% summarise(Total = sum(NUMBER.OF.PERSONS.INJURED)) %>%  top_n(n = 5, wt = Total)
+
+groupedVehicleInjuries
+
+ggplot(data=groupedVehicleInjuries, aes(x=VEHICLE.TYPE.CODE.1, y=Total, fill=VEHICLE.TYPE.CODE.1)) + geom_bar(colour="black", stat="identity") + guides(fill=FALSE)
+```
+
+## Wrap up
+
+Overall, the data set seen here provides only a snapshot of the car accidents in NYC. It provides details about the accident itself, and nothing more. It doesn't have details about if the drivers were in older vehicles, if the drivers were wearing seatbelts, or if what the speed limits were in the areas where the accidents occured. With that information, we could do more fine grained analysis and create a plan as to what can be done regarding these accidents. 
+
+From what we do know, driver inattention and distraction among passenger vehicles seems to cause the most accidents in Brooklyn. Am I surprised by this data? Yes and no. I am not surprised that inattention is a leading cause of crashes because in this day and age, people are glued to their cell phones. When it comes to the type of vehicles, I am not surprised  that passenger vehicles are the most commonly found vehicles in accidents, because that is a common form of ground transportation. I am somewhat surprised that buses didn't make the list, and that taxis are not grouped within the passenger vehicle variable.
+
+One key takeaway with this data set and observation is perhaps we need to focus our attention on creating more public service announcements about the dangers of distracted driving. Or, perhaps we need to create a driver safety program that incentivizes city drivers who go through a defensive driver course. Another thought is to create lower speed limits or enforce the cell phone laws in and around parts of Brooklyn. This data can yield a treasure trove of information if you look for it, and can be used to benefit the residents of NYC as a whole.
